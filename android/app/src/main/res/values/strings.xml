@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grandinella</string>
+    <string name="title_activity_main">Grandinella</string>
+    <string name="package_name">it.grandinella.app</string>
+    <string name="custom_url_scheme">it.grandinella.app</string>
+</resources>

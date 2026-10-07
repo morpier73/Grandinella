@@ -1,0 +1,19 @@
+{
+  "appId": "it.grandinella.app",
+  "appName": "Grandinella",
+  "webDir": "dist",
+  "plugins": {
+    "BackgroundRunner": {
+      "label": "it.grandinella.app.check",
+      "src": "runners/background.js",
+      "event": "checkHail",
+      "repeat": true,
+      "interval": 15,
+      "autoStart": true
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_grandinella",
+      "iconColor": "#67D5FF"
+    }
+  }
+}

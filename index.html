@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1a2c" />
+    <title>Grandinella</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div>
+          <p class="eyebrow">ALLERTA GRANDINE</p>
+          <h1>Grandinella</h1>
+        </div>
+        <button id="locate" class="round" aria-label="Usa la mia posizione" title="Usa la mia posizione">⌖</button>
+      </header>
+
+      <form id="search" class="search" autocomplete="off">
+        <input id="query" type="search" placeholder="Cerca un comune…" aria-label="Cerca un comune" />
+        <ul id="results" class="results" hidden></ul>
+      </form>
+
+      <section class="hero level-none" id="hero">
+        <p class="place" id="place">Scegli una posizione</p>
+        <p class="level" id="level">—</p>
+        <p class="when" id="when">Usa il GPS o cerca un comune per iniziare.</p>
+        <p class="updated" id="updated"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Prossime 3 ore</h2>
+        <div class="timeline" id="timeline" aria-label="Previsione a intervalli di 15 minuti"></div>
+        <div class="ticks" id="ticks"></div>
+        <ul class="legend">
+          <li><i class="k-pioggia"></i>Pioggia</li>
+          <li><i class="k-forte"></i>Forte</li>
+          <li><i class="k-temporale"></i>Temporale</li>
+          <li><i class="k-grandine"></i>Grandine</li>
+        </ul>
+      </section>
+
+      <section class="cards">
+        <article>
+          <p>METEO ORA</p>
+          <strong id="temp">—°</strong>
+          <small id="cond">—</small>
+        </article>
+        <article>
+          <p>ZERO TERMICO</p>
+          <strong id="freezing">—</strong>
+          <small id="cape">—</small>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Perché</h2>
+        <ul class="reasons" id="reasons"><li>In attesa dei dati.</li></ul>
+      </section>
+
+      <section class="panel alerts">
+        <div class="row">
+          <div>
+            <h2>Avvisi in background</h2>
+            <p class="muted" id="alertsHint">Ti avvisa anche ad app chiusa quando il rischio è moderato o alto.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="alertsToggle" />
+            <span></span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="gpsToggle" /> Segui la mia posizione GPS</label>
+        <p class="muted small" id="bgStatus"></p>
+        <button id="testNotif" class="secondary">Invia una notifica di prova</button>
+      </section>
+
+      <p class="note">
+        Stima calcolata sui modelli di Open-Meteo (codici temporale/grandine, CAPE, indice di sollevamento, zero
+        termico). Non sostituisce le allerte ufficiali:
+        <a href="https://allertameteo.regione.emilia-romagna.it" target="_blank" rel="noopener">Allerta Meteo Emilia-Romagna</a>
+        ·
+        <a href="https://www.protezionecivile.gov.it/it/rischi/rischio-meteo-idro/" target="_blank" rel="noopener">Protezione Civile</a>.
+      </p>
+    </main>
+    <div id="toast" role="status"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

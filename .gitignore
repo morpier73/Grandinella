@@ -1,0 +1,7 @@
+node_modules/
+dist/
+public/runners/background.js
+*.keystore
+*.jks
+!android/app/grandinella-sideload.keystore
+.DS_Store
