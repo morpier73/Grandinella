@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { assessHailRisk, shouldNotify, buildForecastUrl, fetchForecast, alertText, ALERT_COOLDOWN_MS } from '../src/hail.js';
+import {
+  assessHailRisk,
+  shouldNotify,
+  buildForecastUrl,
+  fetchForecast,
+  alertText,
+  planNextCheck,
+  isCheckDue,
+  nextAlertState,
+  ALERT_COOLDOWN_MS,
+} from '../src/hail.js';
 
 const NOW = new Date('2026-07-15T14:05:00Z');
 const H0 = Date.UTC(2026, 6, 15, 14) / 1000;
@@ -86,18 +96,74 @@ describe('assessHailRisk', () => {
 });
 
 describe('shouldNotify', () => {
-  const a = (level) => ({ level });
+  const a = (level, firstEvent = null) => ({ level, firstEvent });
   const t = 1_000_000_000_000;
   it('non avvisa sotto il livello moderato', () => {
     expect(shouldNotify(null, a(1), t)).toBe(false);
   });
   it('avvisa la prima volta e quando il livello sale', () => {
-    expect(shouldNotify(null, a(2), t)).toBe(true);
-    expect(shouldNotify({ level: 2, at: t }, a(3), t + 60_000)).toBe(true);
+    expect(shouldNotify(null, a(2), t)).toBe('nuovo');
+    expect(shouldNotify({ level: 2, at: t }, a(3), t + 60_000)).toBe('aumento');
   });
   it('non ripete lo stesso avviso prima di 3 ore', () => {
     expect(shouldNotify({ level: 3, at: t }, a(3), t + 60_000)).toBe(false);
-    expect(shouldNotify({ level: 3, at: t }, a(2), t + ALERT_COOLDOWN_MS)).toBe(true);
+    expect(shouldNotify({ level: 3, at: t }, a(2), t + ALERT_COOLDOWN_MS)).toBe('promemoria');
+  });
+  it('riavvisa una volta quando il temporale è entro 30 minuti', () => {
+    const prev = { level: 3, at: t, imminent: false };
+    expect(shouldNotify(prev, a(3, t + 20 * 60_000), t + 60_000)).toBe('imminente');
+    expect(shouldNotify({ ...prev, imminent: true }, a(3, t + 10 * 60_000), t + 120_000)).toBe(false);
+  });
+});
+
+describe('nextAlertState', () => {
+  const t = 1_000_000_000_000;
+  it('azzera il segno imminente quando il temporale non è più vicino', () => {
+    const prev = { level: 3, at: t, imminent: true };
+    expect(nextAlertState(prev, { level: 1, firstEvent: null }, false, t + 3600_000).imminent).toBe(false);
+    expect(nextAlertState(prev, { level: 3, firstEvent: t + 3600_000 }, false, t + 3600_000)).toBe(prev);
+  });
+  it('salva lo stato quando parte una notifica', () => {
+    const s = nextAlertState(null, { level: 2, firstEvent: t + 10 * 60_000 }, 'nuovo', t);
+    expect(s).toEqual({ at: t, level: 2, imminent: true });
+  });
+});
+
+describe('planNextCheck', () => {
+  const t = 1_000_000_000_000;
+  const a = (level, firstEvent = null) => ({ level, firstEvent });
+  it('allunga o accorcia l’intervallo in base al rischio', () => {
+    expect(planNextCheck(null, a(0), t).nextAt - t).toBe(3 * 3600_000);
+    expect(planNextCheck(null, a(1), t).nextAt - t).toBe(3600_000);
+    expect(planNextCheck(null, a(2), t).nextAt - t).toBe(30 * 60_000);
+    expect(planNextCheck(null, a(3), t).nextAt - t).toBe(15 * 60_000);
+  });
+  it('con rischio nullo scarica meno dati', () => {
+    expect(planNextCheck(null, a(0), t).detail).toBe('light');
+    expect(planNextCheck(null, a(1), t).detail).toBe('full');
+  });
+  it('ricontrolla entro 15 minuti se il temporale è previsto entro un’ora', () => {
+    expect(planNextCheck(null, a(1, t + 50 * 60_000), t).nextAt - t).toBe(15 * 60_000);
+  });
+  it('scende di livello solo dopo due controlli più bassi', () => {
+    const p1 = planNextCheck(null, a(3), t);
+    const p2 = planNextCheck(p1, a(0), t);
+    expect(p2.level).toBe(3);
+    const p3 = planNextCheck(p2, a(0), t);
+    expect(p3.level).toBe(0);
+    expect(p3.nextAt - t).toBe(3 * 3600_000);
+  });
+  it('un controllo tornato alto azzera il conteggio', () => {
+    const p2 = planNextCheck(planNextCheck(null, a(3), t), a(1), t);
+    const p3 = planNextCheck(p2, a(3), t);
+    expect(p3.lowerStreak).toBe(0);
+    expect(planNextCheck(p3, a(1), t).level).toBe(3);
+  });
+  it('salta i risvegli prima dell’ora prevista', () => {
+    const plan = planNextCheck(null, a(0), t);
+    expect(isCheckDue(plan, t + 60 * 60_000)).toBe(false);
+    expect(isCheckDue(plan, plan.nextAt - 30_000)).toBe(true);
+    expect(isCheckDue(null, t)).toBe(true);
   });
 });
 
@@ -113,11 +179,19 @@ describe('fetchForecast', () => {
     expect(urls[1]).not.toContain('lifted_index');
   });
 
+  it('con rischio nullo chiede solo i dati orari essenziali', () => {
+    const u = buildForecastUrl(44.457, 11.2, true, 'light');
+    expect(u).not.toContain('minutely_15');
+    expect(u).not.toContain('700hPa');
+    expect(u).toContain('forecast_hours=4');
+  });
+
   it('chiede codici meteo, zero termico e dati a 15 minuti', () => {
     const u = buildForecastUrl(44.457, 11.2);
     expect(u).toContain('freezing_level_height');
     expect(u).toContain('minutely_15=weather_code,precipitation');
     expect(u).toContain('timeformat=unixtime');
+    expect(u).toContain('wind_direction_500hPa');
   });
 });
 
@@ -127,5 +201,12 @@ describe('alertText', () => {
     const t = alertText(a, 'Monte San Pietro');
     expect(t.title).toBe('Rischio alto di grandine a Monte San Pietro');
     expect(t.body).toMatch(/grandine forte/);
+  });
+
+  it('parla dell’auto quando è parcheggiata', () => {
+    const a = assessHailRisk(forecast([{}, { code: 99 }, {}, {}]), NOW);
+    const t = alertText(a, '', { car: true, reason: 'imminente' });
+    expect(t.title).toBe('Grandine in arrivo dove hai lasciato l’auto'.replace('’', "'"));
+    expect(t.body).toMatch(/parcheggio coperto/);
   });
 });

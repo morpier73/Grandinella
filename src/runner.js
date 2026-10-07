@@ -37,17 +37,27 @@ addEventListener('checkHail', async (resolve, reject) => {
   try {
     const settings = kvGet('settings') || { alerts: false };
     if (!settings.alerts) return resolve();
-    const loc = await currentLocation(settings);
+    const now = Date.now();
+    // Il sistema ci sveglia ogni 15 minuti: se il controllo non è ancora
+    // dovuto si esce subito, senza rete.
+    const plan = kvGet('plan');
+    if (!isCheckDue(plan, now)) return resolve();
+
+    // Se l'auto è parcheggiata si controlla dove sta l'auto.
+    const car = kvGet('car');
+    const loc = car || (await currentLocation(settings));
     if (!loc) return resolve();
 
-    const data = await fetchForecast(loc.lat, loc.lon);
-    const now = Date.now();
+    const data = await fetchForecast(loc.lat, loc.lon, null, plan ? plan.detail : 'full');
     const assessment = assessHailRisk(data, new Date(now));
-    kvSet('lastCheck', { at: now, level: assessment.level, place: loc.name || '' });
+    const next = planNextCheck(plan, assessment, now);
+    kvSet('plan', next);
+    kvSet('lastCheck', { at: now, level: assessment.level, place: car ? 'auto' : loc.name || '', nextAt: next.nextAt });
 
     const previous = kvGet('lastAlert');
-    if (shouldNotify(previous, assessment, now)) {
-      const text = alertText(assessment, loc.name);
+    const reason = shouldNotify(previous, assessment, now);
+    if (reason) {
+      const text = alertText(assessment, loc.name, { car: !!car, reason });
       CapacitorNotifications.schedule([
         {
           id: 1000 + assessment.level,
@@ -57,8 +67,9 @@ addEventListener('checkHail', async (resolve, reject) => {
           autoCancel: true,
         },
       ]);
-      kvSet('lastAlert', { at: now, level: assessment.level });
     }
+    const alertState = nextAlertState(previous, assessment, reason, now);
+    if (alertState) kvSet('lastAlert', alertState);
     resolve();
   } catch (e) {
     kvSet('lastError', { at: Date.now(), message: String(e && e.message ? e.message : e) });
@@ -71,6 +82,12 @@ addEventListener('saveState', (resolve, reject, args) => {
   try {
     if (args && args.location) kvSet('location', args.location);
     if (args && args.settings) kvSet('settings', args.settings);
+    if (args && 'car' in args) {
+      if (args.car) kvSet('car', args.car);
+      else CapacitorKV.remove('car');
+    }
+    // Posizione o auto cambiate: il prossimo controllo va fatto subito.
+    CapacitorKV.remove('plan');
     resolve();
   } catch (e) {
     reject(e);
@@ -80,6 +97,7 @@ addEventListener('saveState', (resolve, reject, args) => {
 addEventListener('getStatus', (resolve) => {
   resolve({
     lastCheck: kvGet('lastCheck'),
+    plan: kvGet('plan'),
     lastAlert: kvGet('lastAlert'),
     lastError: kvGet('lastError'),
   });

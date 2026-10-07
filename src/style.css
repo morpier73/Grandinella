@@ -370,3 +370,109 @@ button {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+.buttons {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.buttons .secondary,
+.advice .secondary {
+  margin-top: 0;
+}
+
+.advice #escape p {
+  margin: 12px 0 10px;
+}
+
+.primary {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--cyan);
+  color: #0b1a2c;
+  font-weight: 700;
+}
+
+.shelters {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.shelters li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.shelters li.empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.shelters strong {
+  display: block;
+  font-size: 14px;
+}
+
+.shelters small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.go {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--green);
+  color: #0b1a2c;
+  font-weight: 700;
+}
+
+.settings summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings summary h2 {
+  display: inline;
+}
+
+.settings summary::after {
+  content: '▾';
+  float: right;
+  color: var(--muted);
+}
+
+.settings[open] summary::after {
+  content: '▴';
+}
+
+.field {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.field select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #18304c;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.credits {
+  margin-top: 14px;
+}

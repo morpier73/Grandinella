@@ -29,6 +29,27 @@
         <p class="updated" id="updated"></p>
       </section>
 
+      <section class="panel advice" id="advice" hidden>
+        <h2>Cosa fare con l’auto</h2>
+        <p class="muted" id="motion"></p>
+        <div id="escape"></div>
+        <p class="muted small">Stima dai modelli meteo, non dal radar. Non metterti in viaggio sotto la grandine.</p>
+      </section>
+
+      <section class="panel car">
+        <h2>La tua auto</h2>
+        <p class="muted" id="carStatus"></p>
+        <div class="buttons">
+          <button id="parkBtn" class="primary" type="button">Ho parcheggiato qui</button>
+          <button id="unparkBtn" class="secondary" type="button" hidden>Ho ripreso l’auto</button>
+          <button id="shelterBtn" class="secondary" type="button">Trova un riparo coperto</button>
+        </div>
+        <div id="sheltersBox" hidden>
+          <ul class="shelters" id="shelters"></ul>
+          <p class="muted small">Controlla orari e altezza massima prima di entrare. Dati © OpenStreetMap.</p>
+        </div>
+      </section>
+
       <section class="panel">
         <h2>Prossime 3 ore</h2>
         <div class="timeline" id="timeline" aria-label="Previsione a intervalli di 15 minuti"></div>
@@ -70,13 +91,28 @@
             <span></span>
           </label>
         </div>
-        <label class="check"><input type="checkbox" id="gpsToggle" /> Segui la mia posizione GPS</label>
         <p class="muted small" id="bgStatus"></p>
+        <p class="muted small" id="iosNote" hidden>Su iPhone è iOS a decidere quando eseguire i controlli in background: possono essere meno frequenti. Con l’app aperta i dati sono sempre aggiornati.</p>
         <button id="testNotif" class="secondary">Invia una notifica di prova</button>
       </section>
 
+      <details class="panel settings">
+        <summary><h2>Impostazioni</h2></summary>
+        <label class="check"><input type="checkbox" id="gpsToggle" /> Segui la mia posizione GPS</label>
+        <label class="field">Navigatore preferito
+          <select id="navigator">
+            <option value="google">Google Maps</option>
+            <option value="waze">Waze</option>
+            <option value="apple">Apple Mappe</option>
+          </select>
+        </label>
+        <p class="muted small">Controlli: ogni 3 ore con rischio nullo, ogni ora con rischio basso, ogni 30 minuti con rischio moderato, ogni 15 minuti con rischio alto.</p>
+        <p class="muted small credits">Grandinella · proprietà intellettuale di Antonio Rosetti.</p>
+      </details>
+
       <p class="note">
-        Stima calcolata sui modelli di Open-Meteo (codici temporale/grandine, CAPE, indice di sollevamento, zero
+        Stima calcolata sui modelli di
+        <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0; codici temporale/grandine, CAPE, indice di sollevamento, zero
         termico). Non sostituisce le allerte ufficiali:
         <a href="https://allertameteo.regione.emilia-romagna.it" target="_blank" rel="noopener">Allerta Meteo Emilia-Romagna</a>
         ·

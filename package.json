@@ -1,6 +1,6 @@
 {
   "name": "grandinella",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Allerta grandine iperlocale per Android e iOS",
   "scripts": {
     "build:runner": "node scripts/build-runner.mjs",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
+    "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/background-runner": "^3.0.0",
     "@capacitor/core": "^8.5.3",
     "@capacitor/geolocation": "^8.2.3",

@@ -25,27 +25,30 @@ const HOURLY_BASE = [
 // Variabili disponibili solo con alcuni modelli: se l'API le rifiuta
 // si riprova senza.
 const HOURLY_EXTRA = ['lifted_index', 'lightning_potential'];
+// Vento in quota: serve a stimare dove si muovono i temporali.
+const HOURLY_STEERING = ['wind_speed_700hPa', 'wind_direction_700hPa', 'wind_speed_500hPa', 'wind_direction_500hPa'];
 
-export function buildForecastUrl(lat, lon, extended = true) {
-  const hourly = extended ? HOURLY_BASE.concat(HOURLY_EXTRA) : HOURLY_BASE;
+// detail "light": solo dati orari essenziali, per i controlli con rischio nullo.
+// detail "full": anche dati a 15 minuti e vento in quota.
+export function buildForecastUrl(lat, lon, extended = true, detail = 'full') {
+  const light = detail === 'light';
+  let hourly = extended ? HOURLY_BASE.concat(HOURLY_EXTRA) : HOURLY_BASE;
+  if (!light) hourly = hourly.concat(HOURLY_STEERING);
   const params = [
     'latitude=' + lat.toFixed(4),
     'longitude=' + lon.toFixed(4),
     'current=temperature_2m,weather_code,precipitation,wind_gusts_10m',
     'hourly=' + hourly.join(','),
-    'minutely_15=weather_code,precipitation',
-    'forecast_hours=5',
-    'forecast_minutely_15=16',
-    'timezone=auto',
-    'timeformat=unixtime',
   ];
+  if (!light) params.push('minutely_15=weather_code,precipitation', 'forecast_minutely_15=16');
+  params.push('forecast_hours=' + (light ? 4 : 5), 'timezone=auto', 'timeformat=unixtime');
   return 'https://api.open-meteo.com/v1/forecast?' + params.join('&');
 }
 
-export async function fetchForecast(lat, lon, fetchFn) {
+export async function fetchForecast(lat, lon, fetchFn, detail) {
   const f = fetchFn || fetch;
-  let res = await f(buildForecastUrl(lat, lon, true));
-  if (res.status === 400) res = await f(buildForecastUrl(lat, lon, false));
+  let res = await f(buildForecastUrl(lat, lon, true, detail));
+  if (res.status === 400) res = await f(buildForecastUrl(lat, lon, false, detail));
   if (!res.ok) throw new Error('Servizio meteo non disponibile (' + res.status + ')');
   return res.json();
 }
@@ -220,13 +223,56 @@ export function currentSummary(data) {
   };
 }
 
-// Decide se mandare una notifica: solo da "moderato" in su, subito se il
-// livello sale, altrimenti non più di una ogni 3 ore.
+// Decide se mandare una notifica e perché: solo da "moderato" in su,
+// subito se il livello sale, di nuovo quando il fenomeno è imminente,
+// altrimenti non più di una ogni 3 ore. Restituisce false oppure il motivo.
+export const IMMINENT_MS = 30 * 60 * 1000;
+
 export function shouldNotify(previous, assessment, nowMs) {
   if (assessment.level < ALERT_MIN_LEVEL) return false;
-  if (!previous) return true;
-  if (assessment.level > previous.level) return true;
-  return nowMs - previous.at >= ALERT_COOLDOWN_MS;
+  if (!previous) return 'nuovo';
+  if (assessment.level > previous.level) return 'aumento';
+  const imminent = assessment.firstEvent !== null && assessment.firstEvent - nowMs <= IMMINENT_MS;
+  if (imminent && !previous.imminent) return 'imminente';
+  if (nowMs - previous.at >= ALERT_COOLDOWN_MS) return 'promemoria';
+  return false;
+}
+
+// Stato da salvare dopo un controllo. Il segno "imminente" si azzera quando
+// il fenomeno non è più vicino, così il temporale successivo riavvisa.
+export function nextAlertState(previous, assessment, reason, nowMs) {
+  const imminentNow = assessment.firstEvent !== null && assessment.firstEvent - nowMs <= IMMINENT_MS;
+  if (reason) return { at: nowMs, level: assessment.level, imminent: imminentNow };
+  if (previous && previous.imminent && !imminentNow) return Object.assign({}, previous, { imminent: false });
+  return previous;
+}
+
+// Intervallo tra un controllo e l'altro in base al rischio.
+export const CHECK_INTERVALS_MS = [3 * 3600000, 3600000, 30 * 60000, 15 * 60000];
+export const MIN_INTERVAL_MS = 15 * 60000;
+
+// Pianifica il prossimo controllo. Il livello "effettivo" scende solo dopo
+// due controlli consecutivi più bassi; se il temporale è previsto entro
+// un'ora si ricontrolla comunque entro 15 minuti.
+export function planNextCheck(previousPlan, assessment, nowMs) {
+  let level = assessment.level;
+  let lowerStreak = 0;
+  if (previousPlan && assessment.level < previousPlan.level) {
+    lowerStreak = (previousPlan.lowerStreak || 0) + 1;
+    if (lowerStreak < 2) level = previousPlan.level;
+    else lowerStreak = 0;
+  }
+  let delay = CHECK_INTERVALS_MS[level];
+  if (assessment.firstEvent !== null && assessment.firstEvent - nowMs <= 3600000) {
+    delay = Math.min(delay, MIN_INTERVAL_MS);
+  }
+  return { level, lowerStreak, nextAt: nowMs + delay, detail: level === 0 ? 'light' : 'full' };
+}
+
+// Il controllo è dovuto? Un minuto di tolleranza perché il sistema non
+// sveglia mai l'app all'istante esatto.
+export function isCheckDue(plan, nowMs) {
+  return !plan || nowMs >= plan.nextAt - 60000;
 }
 
 export function formatTime(ms) {
@@ -234,10 +280,14 @@ export function formatTime(ms) {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
-export function alertText(assessment, placeName) {
+export function alertText(assessment, placeName, options) {
+  const opts = options || {};
   const when = assessment.firstEvent ? ' verso le ' + formatTime(assessment.firstEvent) : ' nelle prossime 3 ore';
-  return {
-    title: assessment.levelInfo.label + ' di grandine' + (placeName ? ' a ' + placeName : ''),
-    body: assessment.reasons[0] + when + '. Metti al riparo auto e piante.',
-  };
+  const where = opts.car ? ' dove hai lasciato l\'auto' : placeName ? ' a ' + placeName : '';
+  const title =
+    (opts.reason === 'imminente' ? 'Grandine in arrivo' : assessment.levelInfo.label + ' di grandine') + where;
+  const action = opts.car
+    ? 'Apri Grandinella per il parcheggio coperto più vicino.'
+    : 'Metti al riparo auto e piante.';
+  return { title, body: assessment.reasons[0] + when + '. ' + action };
 }

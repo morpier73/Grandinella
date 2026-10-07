@@ -5,6 +5,20 @@ e manda una notifica, anche ad app chiusa, quando il rischio è moderato o alto.
 
 Nasce dalla versione 1.0 di Antonio, riscritta per correggerne i difetti principali.
 
+## Novità della 1.2
+
+- **Pensata per l'auto.** Con "Ho parcheggiato qui" gli avvisi seguono l'auto anche quando sei altrove.
+- **Controlli che si adattano al rischio.** Ogni 3 ore con rischio nullo, ogni ora con rischio basso,
+  ogni 30 minuti con rischio moderato, ogni 15 minuti con rischio alto o temporale entro un'ora.
+  Con rischio nullo si scarica solo un pacchetto ridotto di dati.
+- **Avviso "grandine in arrivo"** quando il temporale è previsto entro 30 minuti.
+- **Riparo coperto prima di tutto.** Parcheggi multipiano o sotterranei e distributori vicini da
+  OpenStreetMap, con il tasto per aprirli nel navigatore.
+- **Direzione dei temporali e direzione consigliata** (da 8 punti a 15 km), solo come stima e mai
+  verso il temporale o lungo il suo percorso.
+- **Navigatore preferito** nelle impostazioni: Google Maps, Waze o Mappe di Apple.
+- **Crediti.** Grandinella è proprietà intellettuale di Antonio Rosetti, indicato nelle impostazioni.
+
 ## Cosa cambia rispetto alla 1.0
 
 - **Notifiche vere.** La 1.0 chiedeva il permesso ma non inviava mai nulla. Ora un controllo in
